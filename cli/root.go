@@ -10,9 +10,9 @@ import (
 
 func Root(ctx context.Context) *cobra.Command{
 	var rootCmd = &cobra.Command{
-		Use: "rec",
-		Short: "rec is a simple version control system",
-		Long: "rec is a version control system built in Go. It captures code changes.",
+		Use: "flux",
+		Short: "flux is a simple version control system",
+		Long: "flux is a version control system built in Go. It captures code changes.",
 		PersistentPreRunE: persistentPreRunE,
 	}
 
@@ -34,11 +34,11 @@ func persistentPreRunE(cmd *cobra.Command, args []string) error{
 		return nil
 	}
 	
-	// if .rec is not created prompt user to run init command
-	if !utils.CheckDirExist(".rec"){
+	// if .flux is not created prompt user to run init command
+	if !utils.CheckDirExist(".flux"){
 		// log.Info(cmd.Context(), "debug-2")
-		err := "not a rec repository, run 'rec init' to initialize a empty rec repository"
-		return fmt.Errorf(err)
+		err := "not a flux repository, run 'flux init' to initialize a empty flux repository"
+		return fmt.Errorf("Error: %s", err)
 	}
 	
 	return nil

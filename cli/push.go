@@ -31,13 +31,13 @@ func Push() *cobra.Command{
 }
 
 func pushRunE(cmd *cobra.Command, args []string) error{
-	configPath := filepath.Join(".rec", "config.json")
+	configPath := filepath.Join(".flux", "config.json")
 	parentCtx := cmd.Context()
 	ctx, cancel := context.WithCancel(parentCtx)
 	defer cancel()
 
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		fmt.Println("No .rec/config.json found. Run 'rec init' and 'rec set --remoteUrl <url>' first.")
+		fmt.Println("No .flux/config.json found. Run 'flux init' and 'flux set --remoteUrl <url>' first.")
 		log.Info(parentCtx, "no config file exist")
 		log.Info(parentCtx, "creating default config file.")
 
@@ -61,7 +61,7 @@ func pushRunE(cmd *cobra.Command, args []string) error{
 	remoteUrl := config.Repository.RemoteUrl
 
 	if strings.TrimSpace(remoteUrl) == "" {
-		return fmt.Errorf("no remote url found, run rec set -r <remoteUrl> to set it.")
+		return fmt.Errorf("no remote url found, run flux set -r <remoteUrl> to set it.")
 	}
 
 	res, err := Trigger(remoteUrl)
@@ -94,7 +94,7 @@ func Trigger(remoteUrl string) (*http.Response, error){
 	zipWriter := zip.NewWriter(pw)
 
 	go func(){
-		filepath.Walk(".rec/history", func(path string, info fs.FileInfo, err error) error {
+		filepath.Walk(".flux/history", func(path string, info fs.FileInfo, err error) error {
 			if info.IsDir(){
 				return nil
 			}
@@ -104,7 +104,7 @@ func Trigger(remoteUrl string) (*http.Response, error){
 				return err
 			}
 
-			rel, err := filepath.Rel(".rec", path)
+			rel, err := filepath.Rel(".flux", path)
 			if err != nil{
 				return err
 			}

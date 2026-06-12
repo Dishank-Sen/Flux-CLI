@@ -6,11 +6,11 @@ import (
 	"path"
 )
 
-func init(){
+func init() {
 	InitDir(CreateRootTimeline)
 }
 
-func CreateRootTimeline(ctx context.Context, cancel context.CancelFunc, reinit bool) error{
-	dirPath := path.Join(".rec", "root-timeline")
+func CreateRootTimeline(ctx context.Context, cancel context.CancelFunc, reinit bool) error {
+	dirPath := path.Join(".flux", "root-timeline")
 	return utils.CreateDir(ctx, cancel, dirPath, reinit)
 }

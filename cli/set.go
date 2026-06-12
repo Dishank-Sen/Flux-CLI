@@ -3,25 +3,26 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	cliUtils "exp1/cli/utils"
 	"exp1/internal/types"
 	"exp1/utils"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-	cliUtils "exp1/cli/utils"
+
 	"github.com/spf13/cobra"
 )
 
-func init(){
+func init() {
 	Register("set", Set)
 }
 
-func Set() *cobra.Command{
+func Set() *cobra.Command {
 	SetCmd := &cobra.Command{
 		Use:   "set",
 		Short: "Set repository specific info",
-		RunE:   setRunE,
+		RunE:  setRunE,
 	}
 
 	// Define flags
@@ -31,21 +32,21 @@ func Set() *cobra.Command{
 	return SetCmd
 }
 
-func setRunE(cmd *cobra.Command, args []string) error{
+func setRunE(cmd *cobra.Command, args []string) error {
 	parentCtx := cmd.Context()
-	ctx, cancel := 	context.WithCancel(parentCtx)
+	ctx, cancel := context.WithCancel(parentCtx)
 	defer cancel()
 	// Read flag values
 	userName, _ := cmd.Flags().GetString("username")
 	remoteUrl, _ := cmd.Flags().GetString("remoteUrl")
 
-	configPath := filepath.Join(".rec", "config.json")
+	configPath := filepath.Join(".flux", "config.json")
 
 	// check if config.json exists
-	if !utils.CheckFileExist(configPath){
+	if !utils.CheckFileExist(configPath) {
 		// create a config.json with empty entries
 		err := cliUtils.CreateConfig(ctx, cancel, false)
-		if err != nil{
+		if err != nil {
 			return err
 		}
 	}
@@ -55,7 +56,7 @@ func setRunE(cmd *cobra.Command, args []string) error{
 	if _, err := os.Stat(configPath); err == nil {
 		data, err := os.ReadFile(configPath)
 		if err == nil {
-			if uerr := json.Unmarshal(data, &config); uerr != nil{
+			if uerr := json.Unmarshal(data, &config); uerr != nil {
 				return uerr
 			}
 		}
@@ -72,11 +73,11 @@ func setRunE(cmd *cobra.Command, args []string) error{
 	// Write back to config.json
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
-		return fmt.Errorf("error (set.go): %s",err.Error())
+		return fmt.Errorf("error (set.go): %s", err.Error())
 	}
 
 	if err := os.WriteFile(configPath, data, 0644); err != nil {
-		return fmt.Errorf("error (set.go): %s",err.Error())
+		return fmt.Errorf("error (set.go): %s", err.Error())
 	}
 
 	fmt.Println("✅ Repository configuration updated successfully!")

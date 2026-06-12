@@ -5,11 +5,11 @@ import (
 	"exp1/cli/utils"
 )
 
-func init(){
+func init() {
 	InitFile(CreateFileTree)
 }
 
-// creates .rec/files/files.json which contain metadata for all files at one place
-func CreateFileTree(ctx context.Context, cancel context.CancelFunc, reinit bool) error{
+// creates .flux/files/files.json which contain metadata for all files at one place
+func CreateFileTree(ctx context.Context, cancel context.CancelFunc, reinit bool) error {
 	return utils.CreateFileTree(ctx, cancel, reinit)
 }

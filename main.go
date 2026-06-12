@@ -24,11 +24,11 @@ func main(){
 
 	rootCmd := cli.Root(ctx)
 	if err := rootCmd.Execute(); err != nil {
-    if errors.Is(err, cli.ErrSkipRun) {
-        // normal reinit completed, exit 0 (no message)
-        os.Exit(0)
-    }
-    log.Error(ctx, stop, err.Error())
-    os.Exit(1)
-}
+		if errors.Is(err, cli.ErrSkipRun) {
+			// normal reinit completed, exit 0 (no message)
+			os.Exit(0)
+		}
+		log.Error(ctx, stop, err.Error())
+		os.Exit(1)
+	}
 }

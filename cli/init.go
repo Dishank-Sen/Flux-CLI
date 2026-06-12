@@ -13,29 +13,29 @@ import (
 
 var ErrSkipRun = errors.New("cli: skip runE")
 
-func init(){
+func init() {
 	Register("init", Init)
 }
 
-func Init() *cobra.Command{
+func Init() *cobra.Command {
 	return &cobra.Command{
-		Use: "init",
-		Short: "initialize a new rec repository",
-		RunE: initRunE,
+		Use:               "init",
+		Short:             "initialize a new flux repository",
+		RunE:              initRunE,
 		PersistentPreRunE: initPersistentPreRunE,
-		SilenceUsage: true,     // prevents usage on error
-		SilenceErrors: true,    // prevents printing sentinel error
+		SilenceUsage:      true, // prevents usage on error
+		SilenceErrors:     true, // prevents printing sentinel error
 	}
 }
 
-func initPersistentPreRunE(cmd *cobra.Command, args []string)error{
-	rootDir := ".rec"
+func initPersistentPreRunE(cmd *cobra.Command, args []string) error {
+	rootDir := ".flux"
 	parentCtx := cmd.Context()
 	ctx, cancel := context.WithCancel(parentCtx)
 	defer cancel()
 
-	if utils.CheckDirExist(rootDir){
-		log.Info(parentCtx, "Reinitializing rec repository")
+	if utils.CheckDirExist(rootDir) {
+		log.Info(parentCtx, "Reinitializing flux repository")
 		if err := reinitialize(ctx, cancel); err != nil {
 			return err // real error
 		}
@@ -45,59 +45,59 @@ func initPersistentPreRunE(cmd *cobra.Command, args []string)error{
 	return nil
 }
 
-func initRunE(cmd *cobra.Command, args []string) error{
+func initRunE(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
 
-    // Create directories
-    err := createDir(ctx, cancel, false)
-	if err != nil{
+	// Create difluxtories
+	err := createDir(ctx, cancel, false)
+	if err != nil {
 		return err
 	}
 
-    // Create files
-    err = createFiles(ctx, cancel, false)
-	if err != nil{
+	// Create files
+	err = createFiles(ctx, cancel, false)
+	if err != nil {
 		return err
 	}
 
-	log.Info(ctx, "Initialized empty rec repository")
+	log.Info(ctx, "Initialized empty flux repository")
 	return nil
 }
 
-func createFiles(ctx context.Context, cancel context.CancelFunc, reinit bool) error{
-	for _, f := range initfiles.InitFiles{
+func createFiles(ctx context.Context, cancel context.CancelFunc, reinit bool) error {
+	for _, f := range initfiles.InitFiles {
 		err := f(ctx, cancel, reinit)
-		if err != nil{
+		if err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func createDir(ctx context.Context, cancel context.CancelFunc, reinit bool) error{
-	for _, f := range initdir.InitDirectories{
+func createDir(ctx context.Context, cancel context.CancelFunc, reinit bool) error {
+	for _, f := range initdir.InitDirectories {
 		err := f(ctx, cancel, reinit)
-		if err != nil{
+		if err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func reinitialize(ctx context.Context, cancel context.CancelFunc) error{
-    // Create directories
-    err := createDir(ctx, cancel, true)
-	if err != nil{
+func reinitialize(ctx context.Context, cancel context.CancelFunc) error {
+	// Create difluxtories
+	err := createDir(ctx, cancel, true)
+	if err != nil {
 		return err
 	}
 
-    // Create files
-    err = createFiles(ctx, cancel, true)
-	if err != nil{
+	// Create files
+	err = createFiles(ctx, cancel, true)
+	if err != nil {
 		return err
 	}
 
-	log.Info(ctx, "Reinitialized rec repository")
+	log.Info(ctx, "Reinitialized flux repository")
 	return nil
 }

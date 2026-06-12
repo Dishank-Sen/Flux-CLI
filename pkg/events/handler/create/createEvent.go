@@ -14,50 +14,50 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-type Create struct{
-	Event fsnotify.Event
+type Create struct {
+	Event   fsnotify.Event
 	Watcher interfaces.IWatcher
-	Ctx context.Context
+	Ctx     context.Context
 }
 
-func NewCreate(ctx context.Context, event fsnotify.Event, watcher interfaces.IWatcher) *Create{
+func NewCreate(ctx context.Context, event fsnotify.Event, watcher interfaces.IWatcher) *Create {
 	return &Create{
-		Event: event,
+		Event:   event,
 		Watcher: watcher,
-		Ctx: ctx,
+		Ctx:     ctx,
 	}
 }
 
-func (c *Create) Trigger() error{
+func (c *Create) Trigger() error {
 	ctx := c.Ctx
 
 	path := c.Event.Name
 	name := filepath.Base(path)
 	info, err := os.Stat(path)
-	if err != nil{
+	if err != nil {
 		return err
 	}
-	if info.IsDir(){
+	if info.IsDir() {
 		msg := fmt.Sprintf("folder created: %s", path)
 		log.Info(ctx, msg)
 		// add folder to watcher
-		if err := c.Watcher.AddDirToWatcher(ctx, path, info); err != nil{
+		if err := c.Watcher.AddDirToWatcher(ctx, path, info); err != nil {
 			return err
 		}
-	}else{
+	} else {
 		msg := fmt.Sprintf("file created: %s", path)
 		log.Info(ctx, msg)
 	}
 
 	var data = types.Create{
-		Path: path,
-		Name: name,
-		Action: "create",
-		IsDir: info.IsDir(),
-		Size: info.Size(),
+		Path:       path,
+		Name:       name,
+		Action:     "create",
+		IsDir:      info.IsDir(),
+		Size:       info.Size(),
 		CreateTime: time.Now(),
 	}
 
-	// add file to .rec/root-timeline
+	// add file to .flux/root-timeline
 	return roottimeline.Save(data)
 }

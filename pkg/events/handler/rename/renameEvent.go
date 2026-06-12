@@ -12,19 +12,19 @@ import (
 	"time"
 )
 
-type Rename struct{
+type Rename struct {
 	OldPath string
 	NewPath string
 	Watcher interfaces.IWatcher
-	Ctx context.Context
+	Ctx     context.Context
 }
 
-func NewRename(ctx context.Context, oldPath string, newpath string, watcher interfaces.IWatcher) *Rename{
+func NewRename(ctx context.Context, oldPath string, newpath string, watcher interfaces.IWatcher) *Rename {
 	return &Rename{
 		OldPath: oldPath,
 		NewPath: newpath,
 		Watcher: watcher,
-		Ctx: ctx,
+		Ctx:     ctx,
 	}
 }
 
@@ -39,7 +39,7 @@ func (r *Rename) Trigger() error {
 	}
 
 	// 1) update file tree on disk
-	treePath := filepath.Join(".rec", "files", "fileTree.json")
+	treePath := filepath.Join(".flux", "files", "fileTree.json")
 	data, err := os.ReadFile(treePath)
 	if err != nil {
 		return err

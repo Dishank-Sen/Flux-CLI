@@ -15,13 +15,13 @@ import (
 
 var _ interfaces.IWatcher = (*Watch)(nil)
 
-type Watch struct{
+type Watch struct {
 	watcher *fsnotify.Watcher
-	events interfaces.IEvents
-	Ctx context.Context
+	events  interfaces.IEvents
+	Ctx     context.Context
 }
 
-func NewWatcher(ctx context.Context) *Watch{
+func NewWatcher(ctx context.Context) *Watch {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		newCtx, cancel := context.WithCancel(ctx)
@@ -31,23 +31,23 @@ func NewWatcher(ctx context.Context) *Watch{
 
 	return &Watch{
 		watcher: watcher,
-		events: nil,
-		Ctx: ctx,
+		events:  nil,
+		Ctx:     ctx,
 	}
 }
 
 func (w *Watch) SetEvents(e interfaces.IEvents) {
-    w.events = e
+	w.events = e
 }
 
-func (w *Watch) Start(ctx context.Context) error{
+func (w *Watch) Start(ctx context.Context) error {
 	err := w.filterFiles("./")
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	// here code will be blocked
 	err = w.eventLoop(ctx)
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	return nil
@@ -71,7 +71,7 @@ func (w *Watch) eventLoop(ctx context.Context) error {
 			}
 
 			patterns, err := w.getIgnoredFiles()
-			if err != nil{
+			if err != nil {
 				return err
 			}
 			if w.matchesIgnore(event.Name, patterns) {
@@ -142,35 +142,35 @@ func (w *Watch) safeCallRename(ev fsnotify.Event) error {
 	return nil
 }
 
-// this removes all files mentioned in .recignore
+// this removes all files mentioned in .fluxignore
 
 func (w *Watch) filterFiles(root string) error {
-    ignoredPatterns, err := w.getIgnoredFiles()
-	if err != nil{
+	ignoredPatterns, err := w.getIgnoredFiles()
+	if err != nil {
 		return err
 	}
 
-    return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-        if err != nil {
-            return err
-        }
+	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 
-        // If directory matches ignore pattern, skip it entirely
-        if info.IsDir() && w.matchesIgnore(path, ignoredPatterns) {
-            return filepath.SkipDir
-        }
+		// If directory matches ignore pattern, skip it entirely
+		if info.IsDir() && w.matchesIgnore(path, ignoredPatterns) {
+			return filepath.SkipDir
+		}
 
-        // Otherwise, add the directory
-        return w.AddDirToWatcher(w.Ctx, path, info)
-    })
+		// Otherwise, add the directory
+		return w.AddDirToWatcher(w.Ctx, path, info)
+	})
 }
 
-func (w *Watch) getIgnoredFiles() ([]string, error){
-	ignoredPatterns, err := w.loadIgnore(filepath.Join("./", ".recignore"))
-	if err != nil && !os.IsNotExist(err) { 
-        // ignore error if .recignore not found
+func (w *Watch) getIgnoredFiles() ([]string, error) {
+	ignoredPatterns, err := w.loadIgnore(filepath.Join("./", ".fluxignore"))
+	if err != nil && !os.IsNotExist(err) {
+		// ignore error if .fluxignore not found
 		// fmt.Println(err)
-		return []string{},err
+		return []string{}, err
 	}
 	return ignoredPatterns, nil
 }
@@ -209,7 +209,7 @@ func (w *Watch) matchesIgnore(path string, patterns []string) bool {
 
 // add a dir to be watched
 
-func (w *Watch) AddDirToWatcher(ctx context.Context, path string, info os.FileInfo) error{
+func (w *Watch) AddDirToWatcher(ctx context.Context, path string, info os.FileInfo) error {
 	// Add directories to watcher
 	if info.IsDir() {
 		msg := fmt.Sprintf("watching: %s", path)
