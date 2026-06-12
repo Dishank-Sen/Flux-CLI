@@ -88,12 +88,12 @@ func setRunE(cmd *cobra.Command, args []string) error {
 		}
 	}
 	if strings.TrimSpace(debounce) != "" {
-		threshold_i, err := strconv.Atoi(threshold)
+		debounce_i, err := strconv.Atoi(debounce)
 		if err != nil {
 			return err
 		}
-		if verifyDebounce(int16(threshold_i)) {
-			config.Recorder.CodeThreshold = int16(threshold_i)
+		if verifyDebounce(int16(debounce_i)) {
+			config.Recorder.CodeThreshold = int16(debounce_i)
 		} else {
 			return fmt.Errorf("this debounce time is not acceptable")
 		}
@@ -121,8 +121,8 @@ func verifyThreshold(threshold int16) bool {
 	return true
 }
 
-func verifyDebounce(threshold int16) bool {
-	if threshold <= 0 || threshold > constants.MaxDebounce {
+func verifyDebounce(debounce int16) bool {
+	if debounce <= 0 || debounce > constants.MaxDebounce {
 		return false
 	}
 	return true

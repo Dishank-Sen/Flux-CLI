@@ -90,9 +90,9 @@ A command-line interface that sends user commands to a Flux daemon (IPC RPC) to 
 - Build (local)
   - Simple build:
     ```sh
-    go build -o ./bin/flux ./cmd/codeflow
+    go build -o ./bin/flux ./cmd/flux
     ```
-    Note: the repository's main is at `cmd/codeflow/main.go`; Makefile and build.sh reference `cmd/flux` — path inconsistency (Needs clarification).
+    Note: the repository's main is at `cmd/flux/main.go`; Makefile and build.sh reference `cmd/flux` — path inconsistency (Needs clarification).
   - Multi-arch via script:
     ```sh
     chmod +x build.sh && ./build.sh
@@ -183,7 +183,7 @@ flux push
 
 # Project Structure
 
-- `cmd/codeflow/main.go` — CLI entrypoint (constructs root cobra.Command)
+- `cmd/flux/main.go` — CLI entrypoint (constructs root cobra.Command)
 - `cli/` — cobra command implementations and registration
   - `cli.go` — command registry and DialIPC helper
   - `root.go` — root cobra command and persistent pre-run checks
@@ -228,7 +228,7 @@ flux push
 # Development
 
 - Build
-  - `go build -o ./bin/flux ./cmd/codeflow`
+  - `go build -o ./bin/flux ./cmd/flux`
   - or use `build.sh` for multiple platforms (requires correct cmd path; see Limitations)
 
 - Run tests
@@ -242,19 +242,13 @@ flux push
 # Limitations
 
 - Missing daemon implementation: this repository implements the CLI and client-side logic only. The flux daemon that implements RPC endpoints (`/init`, `/start`, `/login`, etc.) is not present here — CLI RPC calls will fail unless a compatible daemon is running and listening on the expected IPC endpoints. (Needs clarification: intended daemon location or repository.)
-- Hard-coded push endpoint: `flux push` posts to `http://localhost:3000/api/v1/push` in code (cli/push.go). There is no configuration hook in the CLI for this endpoint (Needs clarification / config option).
-- Build path inconsistencies:
-  - `cmd/codeflow/main.go` exists and is used by code; `Makefile` and `build.sh` reference `./cmd/flux` and other names inconsistent with file tree. Ensure build scripts point to `./cmd/codeflow` or move main package to `cmd/flux`. (Evidence: Makefile and build.sh reference different cmd paths.)
+- Hard-coded push endpoint: `flux push` posts to `http://localhost:3000/api/v1/push` in code (cli/push.go). There is no configuration hook in the CLI for this endpoint.
 - Binaries in `bin/`: prebuilt binaries are checked in; verify compatibility and trust before use.
 - Authentication protocol and server API contract are not defined here beyond the CLI's expectations (strings JSON for login, multipart shape for push). Server-side validation/response formats are not included (Needs clarification).
-- Minor code issues:
-  - In `cli/set.go`, debounce flag handling reads `threshold` variable rather than `debounce` when parsing debounce value (potential bug).
 
 # Future Improvements
 
-- Add daemon implementation or link to it in this repo / document API expected from daemon.
 - Make push endpoint configurable via `.flux/config.json` or environment variable.
-- Correct Makefile/build.sh to reference correct cmd path (`cmd/codeflow` vs `cmd/flux`) and ensure reproducible builds.
 - Add server-client protocol docs and tests (specify RPC method names, payload formats, error cases).
 - Add unit & integration tests around push flow and RPC interactions; mock arpc client for CLI tests.
 - Add support for Windows-specific sockets or better fallback documentation.
