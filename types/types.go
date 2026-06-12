@@ -25,13 +25,13 @@ type Remove struct{
 }
 
 type Rename struct{
-	OldPath string `json:"path"`
-	OldName string `json:"name"`
+	OldPath string `json:"oldPath"`
+	OldName string `json:"oldName"`
 	Action string `json:"action"`
 	IsDir bool `json:"isDir"`
 	Size int64 `json:"size"`
-	NewPath string `json:"newPath"`
-	NewName string `json:"newName"`
+	Path string `json:"path"`
+	Name string `json:"name"`
 	RenameTime time.Time `json:"createTime"`
 }
 
@@ -51,12 +51,20 @@ type Repository struct{
 }
 
 type Recorder struct{
-	DebounceTime int64
+	DebounceTime int16  // in sec
+	CodeThreshold int16  // in sec
+}
+
+type SSHKeys struct{
+	PublicKeyPath string
+	PrivateKeyPath string
 }
 
 type Config struct {
+	WorkingDir string
 	Repository Repository
 	Recorder Recorder
+	SSHKeys SSHKeys
 }
 
 type Node struct {
@@ -64,11 +72,14 @@ type Node struct {
     Path     string     `json:"path"`               // absolute or repo-relative
     IsDir    bool       `json:"isDir"`
     Size     int64      `json:"size,omitempty"`     // bytes; 0 for dirs
-	CreateTime time.Time `json:"createTime,omitempty"`
-    ModTime  time.Time  `json:"modTime,omitempty"`
     Children []*Node    `json:"children,omitempty"` // nil when no children -> omitted in JSON
 }
 
 type FileTree struct{
 	Files []*Node `json:"files"`
+}
+
+type Metadata struct{
+	UserName string `json:"userName"`
+	RepoName string `json:"repoName"`
 }

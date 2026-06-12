@@ -2,8 +2,9 @@ package initdir
 
 import (
 	"context"
-	"exp1/cli/utils"
 	"path"
+
+	"github.com/Dishank-Sen/Flux-CLI/cli/utils"
 )
 
 func init() {

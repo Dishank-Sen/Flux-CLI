@@ -4,67 +4,114 @@ import (
 	"archive/zip"
 	"context"
 	"encoding/json"
-	"exp1/cli/utils"
-	"exp1/internal/types"
-	"exp1/utils/log"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
+	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
+	cliutils "github.com/Dishank-Sen/Flux-CLI/cli/utils"
+	"github.com/Dishank-Sen/Flux-CLI/constants"
+	"github.com/Dishank-Sen/Flux-CLI/types"
+	"github.com/Dishank-Sen/Flux-CLI/utils"
+	"github.com/Dishank-Sen/Flux-CLI/utils/logger"
+
+	"github.com/lesismal/arpc"
 	"github.com/spf13/cobra"
 )
 
-func init(){
+func init() {
 	Register("push", Push)
 }
 
-func Push() *cobra.Command{
+func Push() *cobra.Command {
 	return &cobra.Command{
-		Use: "push",
+		Use:   "push",
 		Short: "pushes all the snapshot and deltas to server",
-		RunE: pushRunE,
+		RunE:  pushRunE,
 	}
 }
 
-func pushRunE(cmd *cobra.Command, args []string) error{
-	configPath := filepath.Join(".flux", "config.json")
+func pushRunE(cmd *cobra.Command, args []string) error {
 	parentCtx := cmd.Context()
 	ctx, cancel := context.WithCancel(parentCtx)
 	defer cancel()
 
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		fmt.Println("No .flux/config.json found. Run 'flux init' and 'flux set --remoteUrl <url>' first.")
-		log.Info(parentCtx, "no config file exist")
-		log.Info(parentCtx, "creating default config file.")
+	configPath := filepath.Join(".flux", "config.json")
 
-		// create a default config file
-		err := utils.CreateConfig(ctx, cancel, false)
-		if err != nil{
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		logger.Info("no config file exist")
+		logger.Info("creating default config file")
+
+		if err := cliutils.CreateConfig(ctx, cancel, false); err != nil {
 			return err
 		}
 	}
 
-	data, err := os.ReadFile(configPath)
+	cfg, err := utils.GetConfig()
 	if err != nil {
 		return err
 	}
 
-	var config types.Config
-	if err := json.Unmarshal(data, &config); err != nil {
+	// -----------------------------
+	// Validate important config
+	// -----------------------------
+	if strings.TrimSpace(cfg.Repository.UserName) == "" {
+		return fmt.Errorf("username not set. run flux set-user <username>")
+	}
+
+	if strings.TrimSpace(cfg.Repository.RemoteUrl) == "" {
+		return fmt.Errorf("remote url not set. run fluxset -r <url>")
+	}
+
+	if cfg.SSHKeys.PrivateKeyPath == "" || cfg.SSHKeys.PublicKeyPath == "" {
+		return fmt.Errorf("ssh keys not configured. run flux genk")
+	}
+
+	if !utils.CheckFileExist(cfg.SSHKeys.PrivateKeyPath) ||
+		!utils.CheckFileExist(cfg.SSHKeys.PublicKeyPath) {
+		return fmt.Errorf("ssh key files missing")
+	}
+
+	// -----------------------------
+	// Authenticate user
+	// -----------------------------
+	logger.Info("authenticating user")
+
+	if err := authenticateUser(cfg.Repository.UserName); err != nil {
 		return err
 	}
- 
-	remoteUrl := config.Repository.RemoteUrl
 
-	if strings.TrimSpace(remoteUrl) == "" {
-		return fmt.Errorf("no remote url found, run flux set -r <remoteUrl> to set it.")
+	logger.Info("authentication successful")
+
+	// -----------------------------
+	// Generate file tree
+	// -----------------------------
+	logger.Info("creating file tree")
+
+	if err := cliutils.CreateFileTree(ctx); err != nil {
+		return err
 	}
 
-	res, err := Trigger(remoteUrl)
+	// -----------------------------
+	// Parse remote URL
+	// -----------------------------
+	userName, repoName, err := parseRemoteURL(cfg.Repository.RemoteUrl)
+	if err != nil {
+		return err
+	}
+
+	endpointUrl := "http://localhost:3000/api/v1/push"
+
+	// -----------------------------
+	// Push snapshot
+	// -----------------------------
+	res, err := Trigger(userName, repoName, endpointUrl)
 	if err != nil {
 		return err
 	}
@@ -75,48 +122,216 @@ func pushRunE(cmd *cobra.Command, args []string) error{
 		return err
 	}
 
-	fmt.Println("response status:", res.Status)
-	fmt.Println("response body:", string(body))
-	statusMsg := fmt.Sprintf("response status: %s", res.Status)
-	log.Info(parentCtx, statusMsg)
-
-	bodyMsg := fmt.Sprintf("response body: %s", string(body))
-	log.Info(parentCtx, bodyMsg)
+	logger.Info(fmt.Sprintf("response status: %s", res.Status))
+	logger.Info(fmt.Sprintf("response body: %s", string(body)))
 
 	return nil
 }
 
-func Trigger(remoteUrl string) (*http.Response, error){
-	// get pipe reader and writer
+func authenticateUser(username string) error {
+	cli, err := arpc.NewClient(DialIPC)
+	if err != nil {
+		return err
+	}
+
+	req := loginRequest{
+		UserName: username,
+	}
+
+	data, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	var rsp string
+
+	if err := cli.Call("/login", string(data), &rsp, constants.CallTime); err != nil {
+		return err
+	}
+
+	var res loginResponse
+	if err := json.Unmarshal([]byte(rsp), &res); err != nil {
+		return err
+	}
+
+	if res.Status != 200 {
+		return fmt.Errorf("authentication failed: %s", res.Message)
+	}
+
+	return nil
+}
+
+func parseRemoteURL(remoteUrl string) (username string, repoName string, err error) {
+	if !strings.Contains(remoteUrl, "://") {
+		remoteUrl = "https://" + remoteUrl
+	}
+
+	u, err := url.Parse(remoteUrl)
+	if err != nil {
+		return "", "", err
+	}
+
+	segments := strings.Split(strings.Trim(u.Path, "/"), "/")
+	if len(segments) != 2 {
+		return "", "", errors.New("invalid URL format: expected /<username>/<repo>.flux")
+	}
+
+	username = segments[0]
+	repo := segments[1]
+
+	if !strings.HasSuffix(repo, ".flux") {
+		return "", "", errors.New("invalid repo name: missing .flux suffix")
+	}
+
+	repoName = strings.TrimSuffix(repo, ".flux")
+	if repoName == "" {
+		return "", "", errors.New("empty repo name")
+	}
+
+	return username, repoName, nil
+}
+
+func Trigger(userName, repoName, endpointUrl string) (*http.Response, error) {
 	pr, pw := io.Pipe()
+	writer := multipart.NewWriter(pw)
 
-	// get a writer to the pipe
-	zipWriter := zip.NewWriter(pw)
+	go func() {
+		defer pw.Close()
+		defer writer.Close()
 
-	go func(){
-		filepath.Walk(".flux/history", func(path string, info fs.FileInfo, err error) error {
-			if info.IsDir(){
-				return nil
-			}
+		metaPart, _ := writer.CreateFormField("metadata")
+		metadata := types.Metadata{
+			UserName: userName,
+			RepoName: repoName,
+		}
 
-			f, err := os.Open(path)
-			if err != nil{
-				return err
-			}
+		metadataBytes, _ := json.Marshal(metadata)
+		metaPart.Write(metadataBytes)
 
-			rel, err := filepath.Rel(".flux", path)
-			if err != nil{
-				return err
-			}
+		ignoreSet, _ := loadIgnoreSet(".flowignore")
 
-			w, err := zipWriter.Create(rel)
-			
-			io.Copy(w, f)
-			return nil
-		})
-		zipWriter.Close()
-		pw.Close()
+		zipFiles(writer, "history", "history.zip", ".flux/history", ignoreSet, filterHistoryFile)
+		zipFiles(writer, "fileTree", "fileTree.zip", ".flux/files", ignoreSet, nil)
+		zipFiles(writer, "root-timeline", "root-timeline.zip", ".flux/root-timeline", ignoreSet, filterRootTimelineFile)
 	}()
 
-	return http.Post(remoteUrl, "application/zip", pr)
+	req, _ := http.NewRequest("POST", endpointUrl, pr)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	client := &http.Client{}
+	return client.Do(req)
+}
+
+func zipFiles(
+	writer *multipart.Writer,
+	fieldname string,
+	filename string,
+	dirPath string,
+	ignoreSet map[string]struct{},
+	filter func([]byte, map[string]struct{}) (bool, error),
+) {
+
+	zipPart, _ := writer.CreateFormFile(fieldname, filename)
+	zipWriter := zip.NewWriter(zipPart)
+
+	filepath.Walk(dirPath, func(path string, info fs.FileInfo, err error) error {
+
+		if err != nil || info.IsDir() {
+			return err
+		}
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+
+		if filter != nil {
+			ok, err := filter(data, ignoreSet)
+			if err != nil || !ok {
+				return nil
+			}
+		}
+
+		rel, _ := filepath.Rel(".flux", path)
+
+		w, _ := zipWriter.Create(rel)
+		w.Write(data)
+
+		return nil
+	})
+
+	zipWriter.Close()
+}
+
+func filterHistoryFile(data []byte, ignoreSet map[string]struct{}) (bool, error) {
+
+	var event types.Write
+
+	if err := json.Unmarshal(data, &event); err != nil {
+		return false, err
+	}
+
+	if shouldIgnore(event.Path, ignoreSet) {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func filterRootTimelineFile(data []byte, ignoreSet map[string]struct{}) (bool, error) {
+
+	var base struct {
+		Path string `json:"path"`
+	}
+
+	if err := json.Unmarshal(data, &base); err != nil {
+		return false, err
+	}
+
+	if shouldIgnore(base.Path, ignoreSet) {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func loadIgnoreSet(path string) (map[string]struct{}, error) {
+
+	set := make(map[string]struct{})
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return set, nil
+	}
+
+	lines := strings.Split(string(data), "\n")
+
+	for _, l := range lines {
+
+		l = strings.TrimSpace(l)
+
+		if l == "" {
+			continue
+		}
+
+		l = filepath.Clean(l)
+
+		set[l] = struct{}{}
+	}
+
+	return set, nil
+}
+
+func shouldIgnore(path string, ignoreSet map[string]struct{}) bool {
+
+	path = filepath.Clean(path)
+
+	for ignore := range ignoreSet {
+
+		if path == ignore || strings.HasPrefix(path, ignore+string(os.PathSeparator)) {
+			return true
+		}
+	}
+
+	return false
 }

@@ -1,0 +1,38 @@
+{
+  "files": [
+    {
+      "name": ".flux",
+      "path": ".flux",
+      "isDir": true,
+      "createTime": "0001-01-01T00:00:00Z",
+      "modTime": "0001-01-01T00:00:00Z",
+      "children": [
+        {
+          "name": "files",
+          "path": ".flux/files",
+          "isDir": true,
+          "createTime": "0001-01-01T00:00:00Z",
+          "modTime": "0001-01-01T00:00:00Z",
+          "children": [
+            {
+              "name": "fileTree.json",
+              "path": ".flux/files/fileTree.json",
+              "isDir": false,
+              "size": 938,
+              "createTime": "0001-01-01T00:00:00Z",
+              "modTime": "0001-01-01T00:00:00Z"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "debug_test.go",
+      "path": "debug_test.go",
+      "isDir": false,
+      "size": 1031,
+      "createTime": "0001-01-01T00:00:00Z",
+      "modTime": "0001-01-01T00:00:00Z"
+    }
+  ]
+}

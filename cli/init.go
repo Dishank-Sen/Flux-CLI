@@ -2,14 +2,30 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	initdir "exp1/cli/initDir"
-	initfiles "exp1/cli/initFiles"
-	"exp1/utils"
-	"exp1/utils/log"
+	"fmt"
+	"os"
 
+	initdir "github.com/Dishank-Sen/Flux-CLI/cli/initDir"
+	initfiles "github.com/Dishank-Sen/Flux-CLI/cli/initFiles"
+	"github.com/Dishank-Sen/Flux-CLI/constants"
+	"github.com/Dishank-Sen/Flux-CLI/utils"
+	"github.com/Dishank-Sen/Flux-CLI/utils/logger"
+
+	"github.com/lesismal/arpc"
 	"github.com/spf13/cobra"
 )
+
+type initRequest struct {
+	WorkingDir  string
+	IgnoreFiles []string
+}
+
+type initResponse struct {
+	Status  int16
+	Message string
+}
 
 var ErrSkipRun = errors.New("cli: skip runE")
 
@@ -35,7 +51,7 @@ func initPersistentPreRunE(cmd *cobra.Command, args []string) error {
 	defer cancel()
 
 	if utils.CheckDirExist(rootDir) {
-		log.Info(parentCtx, "Reinitializing flux repository")
+		logger.Info("Reinitializing flux repository")
 		if err := reinitialize(ctx, cancel); err != nil {
 			return err // real error
 		}
@@ -49,19 +65,37 @@ func initRunE(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
 
-	// Create difluxtories
-	err := createDir(ctx, cancel, false)
+	cli, err := arpc.NewClient(DialIPC)
 	if err != nil {
 		return err
 	}
 
-	// Create files
-	err = createFiles(ctx, cancel, false)
+	req, err := getInitReq()
 	if err != nil {
 		return err
 	}
+	rsp := ""
+	if err := cli.Call("/init", &req, &rsp, constants.CallTime); err != nil {
+		return err
+	} else {
+		var res initResponse
+		if err := json.Unmarshal([]byte(rsp), &res); err != nil {
+			return err
+		}
+		logger.Info(fmt.Sprintf("Status: %v\nMessage: %s", res.Status, res.Message))
 
-	log.Info(ctx, "Initialized empty flux repository")
+		// Create directories
+		err := createDir(ctx, cancel, false)
+		if err != nil {
+			return err
+		}
+
+		// Create files
+		if err := createFiles(ctx, cancel, false); err != nil {
+			return err
+		}
+	}
+	logger.Info("Initialized empty flux repository")
 	return nil
 }
 
@@ -86,7 +120,7 @@ func createDir(ctx context.Context, cancel context.CancelFunc, reinit bool) erro
 }
 
 func reinitialize(ctx context.Context, cancel context.CancelFunc) error {
-	// Create difluxtories
+	// Create directories
 	err := createDir(ctx, cancel, true)
 	if err != nil {
 		return err
@@ -98,6 +132,23 @@ func reinitialize(ctx context.Context, cancel context.CancelFunc) error {
 		return err
 	}
 
-	log.Info(ctx, "Reinitialized flux repository")
+	logger.Info("Reinitialized flux repository")
 	return nil
+}
+
+func getInitReq() (string, error) {
+	f := utils.GetIgnoreFiles()
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	req := initRequest{
+		WorkingDir:  dir,
+		IgnoreFiles: f,
+	}
+	data, err := json.Marshal(req)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }

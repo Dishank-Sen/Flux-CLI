@@ -3,13 +3,16 @@ package cli
 import (
 	"context"
 	"encoding/json"
-	cliUtils "exp1/cli/utils"
-	"exp1/internal/types"
-	"exp1/utils"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+
+	cliUtils "github.com/Dishank-Sen/Flux-CLI/cli/utils"
+	"github.com/Dishank-Sen/Flux-CLI/constants"
+	"github.com/Dishank-Sen/Flux-CLI/types"
+	"github.com/Dishank-Sen/Flux-CLI/utils"
 
 	"github.com/spf13/cobra"
 )
@@ -26,8 +29,10 @@ func Set() *cobra.Command {
 	}
 
 	// Define flags
-	SetCmd.Flags().StringP("username", "u", "", "username")
+	SetCmd.Flags().StringP("username", "u", "", "Git username")
 	SetCmd.Flags().StringP("remoteUrl", "r", "", "Remote repository URL")
+	SetCmd.Flags().String("threshold", "", "code threshold value")
+	SetCmd.Flags().String("debounce", "", "debounce time")
 
 	return SetCmd
 }
@@ -39,6 +44,8 @@ func setRunE(cmd *cobra.Command, args []string) error {
 	// Read flag values
 	userName, _ := cmd.Flags().GetString("username")
 	remoteUrl, _ := cmd.Flags().GetString("remoteUrl")
+	threshold, _ := cmd.Flags().GetString("threshold")
+	debounce, _ := cmd.Flags().GetString("debounce")
 
 	configPath := filepath.Join(".flux", "config.json")
 
@@ -69,6 +76,28 @@ func setRunE(cmd *cobra.Command, args []string) error {
 	if strings.TrimSpace(remoteUrl) != "" {
 		config.Repository.RemoteUrl = remoteUrl
 	}
+	if strings.TrimSpace(threshold) != "" {
+		threshold_i, err := strconv.Atoi(threshold)
+		if err != nil {
+			return err
+		}
+		if verifyThreshold(int16(threshold_i)) {
+			config.Recorder.CodeThreshold = int16(threshold_i)
+		} else {
+			return fmt.Errorf("this threshold is not acceptable")
+		}
+	}
+	if strings.TrimSpace(debounce) != "" {
+		threshold_i, err := strconv.Atoi(threshold)
+		if err != nil {
+			return err
+		}
+		if verifyDebounce(int16(threshold_i)) {
+			config.Recorder.CodeThreshold = int16(threshold_i)
+		} else {
+			return fmt.Errorf("this debounce time is not acceptable")
+		}
+	}
 
 	// Write back to config.json
 	data, err := json.MarshalIndent(config, "", "  ")
@@ -83,4 +112,18 @@ func setRunE(cmd *cobra.Command, args []string) error {
 	fmt.Println("✅ Repository configuration updated successfully!")
 
 	return nil
+}
+
+func verifyThreshold(threshold int16) bool {
+	if threshold <= 0 || threshold > constants.MaxThreshold {
+		return false
+	}
+	return true
+}
+
+func verifyDebounce(threshold int16) bool {
+	if threshold <= 0 || threshold > constants.MaxDebounce {
+		return false
+	}
+	return true
 }

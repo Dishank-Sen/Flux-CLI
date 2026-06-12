@@ -1,24 +1,27 @@
-package cli
+package client
 
 import (
 	"net"
 	"runtime"
 
-	"github.com/spf13/cobra"
+	"github.com/lesismal/arpc"
 )
 
-type cmdFunc func() *cobra.Command
-
-var Registered map[string]cmdFunc
-
-func Register(cmd string, f cmdFunc) {
-	if Registered == nil {
-		Registered = make(map[string]cmdFunc)
-	}
-	Registered[cmd] = f
+type Client struct {
+	client *arpc.Client
 }
 
-func DialIPC() (net.Conn, error) {
+func NewClient() (*Client, error) {
+	c, err := arpc.NewClient(dialIPC)
+	if err != nil {
+		return nil, err
+	}
+	return &Client{
+		client: c,
+	}, nil
+}
+
+func dialIPC() (net.Conn, error) {
 	switch runtime.GOOS {
 
 	case "windows":
